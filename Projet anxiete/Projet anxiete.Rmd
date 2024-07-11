@@ -4,8 +4,17 @@ author: "Matis Larouche"
 date: "2024-05-28"
 output: html_document
 ---
+###Introduction
+Depuis la Covid-19 la sensibilité quant au trouble mentale à augmenter drastiquement. Beaucoup de gens ont souffert d'anxiété et de stress suite à tous ces évènements. Je me suis donc questionné sur les causes de ces problèmes d'où j'ai découvert une passion pour la psychologie. J'ai voulu joindre le volait informatique avec la psychologie pour mon cours individualisé. J'ai donc choisi des données sur l'anxiété en lien avec les jeux vidéos pour réaliser ce projet.
 
-```{r load-packages, message = FALSE}
+### La source des données
+J'ai pris mes données sur Kaggle où j'ai aussi eu accès au formulaire que les répondants ont eu à répondre pour fournir leur données.
+
+il y a un total de 55 variables pour 14 300 entrées ce qui sera assez pour faire tous les tests imaginables.
+
+Voici le lien de la source de données: https://www.kaggle.com/datasets/divyansh22/online-gaming-anxiety-data/data
+
+```{r load-packages, message = FALSE, warning = FALSE}
 library(tidyverse)
 library(broom)
 library(skimr)
@@ -29,7 +38,7 @@ glimpse(data)
 
 ## Objectifs
 
-1. J'aimerais analyser les trouble des jouers et voir si les question de GAD fonctionne pour déterminer le profil mental du joueur
+Dans ce projet, il y a trois objectifs. Tout d'abord, il y a l'objectif d'explorer les données afin d'analyser les données potentielles pouvant permettre d'établir une relation entre celle-ci et l'anxiété des répondant du sondage. Par la suite, je vais créer une analyse de composantes principales (ACP) afin de vérifier si mes données ont un quelconque lien pour prédire l'anxiété et pour finir je vais faire une régression de la source des données pour valider ce que mon ACP a donné comme résultats.
 
 ## Nettoyage de données
 ```{r RemoveColumn}
@@ -362,9 +371,12 @@ library(tidyr)
 # Lister les noms des colonnes du jeu de données
 cols <- colnames(data_with_pcaSPIN)
 
+# Liste des colonnes à exclure
+excluded_cols <- c("DimGAD1", "DimGAD2", "DimGAD3", "DimGAD4", "DimSPIN1", "DimSPIN2", "DimSPIN3", "DimSPIN4", "DimSPIN5", "DimSPIN6", "DimSPIN7", "DimSPIN8")
+
 # Boucle à travers chaque colonne et créer les graphiques
 for (col in cols) {
-  if (col != "DimGAD1" & col != "DimSPIN1") {
+  if (!col %in% excluded_cols) {
     # Calculer les moyennes de DimGAD1 et DimSPIN1 pour chaque valeur unique de la colonne actuelle
     summary_data <- data_with_pcaSPIN %>%
       group_by(!!sym(col)) %>%
@@ -391,3 +403,104 @@ for (col in cols) {
 }
 
 ```
+```{r regression_lineaire}
+
+
+# Charger les packages
+library(ggplot2)
+library(broom)
+
+# Assurez-vous que le dataframe data_with_pcaSPIN est chargé
+# data_with_pcaSPIN <- read.csv("path_to_your_data.csv") # Par exemple
+
+# Créer le modèle de régression linéaire
+model_GAD <- lm(DimGAD1 ~ GADE + Game + SWL1 + SWL2 + SWL3 + SWL4 + SWL5 + Platform + Hours + DimSPIN1 + Narcissism + Gender + Age + Work + Degree + Reference, data = data_with_pcaSPIN)
+
+anova(model_GAD)
+
+# Afficher un résumé du modèle
+summary(model_GAD)
+
+# Graphique des résidus
+residuals <- residuals(model_GAD)
+fitted <- fitted(model_GAD)
+
+ggplot(data = data.frame(fitted = fitted, residuals = residuals), aes(x = fitted, y = residuals)) +
+  geom_point() +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+  labs(title = "Graphique des résidus",
+       x = "Valeurs prédites",
+       y = "Résidus")
+
+# Graphique des valeurs observées vs prédites
+observed <- data_with_pcaSPIN$DimGAD1
+
+ggplot(data = data.frame(observed = observed, fitted = fitted), aes(x = observed, y = fitted)) +
+  geom_point() +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "blue") +
+  labs(title = "Valeurs observées vs prédites",
+       x = "Valeurs observées",
+       y = "Valeurs prédites")
+
+# Extraire les coefficients et leurs intervalles de confiance
+tidy_model <- tidy(model_GAD, conf.int = TRUE)
+
+# Graphique des coefficients
+ggplot(tidy_model, aes(x = term, y = estimate)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0.2) +
+  coord_flip() +
+  labs(title = "Graphique des coefficients",
+       x = "Variable",
+       y = "Coefficient estimé")
+
+# Créer le modèle de régression linéaire
+model_SPIN <- lm(DimSPIN1 ~ GADE + Game + SWL1 + SWL2 + SWL3 + SWL4 + SWL5 + Platform + Hours + DimGAD1 + Narcissism + Gender + Age + Work + Degree + Reference, data = data_with_pcaSPIN)
+
+anova(model_SPIN)
+
+# Afficher un résumé du modèle
+summary(model_SPIN)
+
+# Graphique des résidus
+residuals <- residuals(model_SPIN)
+fitted <- fitted(model_SPIN)
+
+ggplot(data = data.frame(fitted = fitted, residuals = residuals), aes(x = fitted, y = residuals)) +
+  geom_point() +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+  labs(title = "Graphique des résidus",
+       x = "Valeurs prédites",
+       y = "Résidus")
+
+# Graphique des valeurs observées vs prédites
+observed <- data_with_pcaSPIN$DimGAD1
+
+ggplot(data = data.frame(observed = observed, fitted = fitted), aes(x = observed, y = fitted)) +
+  geom_point() +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "blue") +
+  labs(title = "Valeurs observées vs prédites",
+       x = "Valeurs observées",
+       y = "Valeurs prédites")
+
+# Extraire les coefficients et leurs intervalles de confiance
+tidy_model <- tidy(model_SPIN, conf.int = TRUE)
+
+# Graphique des coefficients
+ggplot(tidy_model, aes(x = term, y = estimate)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0.2) +
+  coord_flip() +
+  labs(title = "Graphique des coefficients",
+       x = "Variable",
+       y = "Coefficient estimé")
+
+
+```
+###résultat
+En ce qui concerne la régression de DimGAD1, les variables continues qui ont une signification positive sont SWL4, Hours, DimSPIN1 et Narcissism. Les variables continues qui ont une signification négative sont SWL2, SWL3 et SWL5. Pour ce qui est des variables catégoriques, celles qui ont une signification sont GADE, Game, Gender, Work et Reference.
+
+Pour la régression de DimSPIN1, les variables continues qui ont une signification positive sont Hours et DimGAD1. Les variables continues qui ont une signification négative sont SWL3, SWL5, Narcissism et Age. Pour ce qui est des variables catégoriques, celles qui ont une signification sont GADE, Game, Platform, Gender, Work et Degree.
+
+###Conclusion
+En somme, j'ai réussi à trouver des dimensions représentatives avec mon ACP et atteindre mes trois objectifs. L'exploration de mes données a été faite tout au long de mon projet que ce soit pour l'analyse globale, l'analyse de mon ACP ainsi que ma régression linéaire. J'ai réussi à trouver des dimensions représentatives des tests GAD et SPIN avec mon ACP et les tester sur l'ensemble de mes variables. Ma régression linéaire quant à elle a su mettre en évidence les variables qui avaient une signification dans mes données sur le sondage en lien avec l'anxiété.
